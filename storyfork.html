@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StoryFork</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { background: #09090b; color: white; margin: 0; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // ─── INLINE SVG ICONS (no CDN dependency) ────────────────────────────────
+    function SvgWrap({size=16,className="",fill="none",style,children}){
+      return <svg width={size} height={size} viewBox="0 0 24 24" fill={fill}
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        className={className} style={style}>{children}</svg>;
+    }
+    const GitBranch=p=><SvgWrap {...p}><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></SvgWrap>;
+    const Bell=p=><SvgWrap {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></SvgWrap>;
+    const User=p=><SvgWrap {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></SvgWrap>;
+    const Heart=p=><SvgWrap {...p}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></SvgWrap>;
+    const MessageCircle=p=><SvgWrap {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></SvgWrap>;
+    const TrendingUp=p=><SvgWrap {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></SvgWrap>;
+    const Clock=p=><SvgWrap {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></SvgWrap>;
+    const BookOpen=p=><SvgWrap {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></SvgWrap>;
+    const Edit3=p=><SvgWrap {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></SvgWrap>;
+    const Check=p=><SvgWrap {...p}><polyline points="20 6 9 17 4 12"/></SvgWrap>;
+    const X=p=><SvgWrap {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></SvgWrap>;
+    const Upload=p=><SvgWrap {...p}><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></SvgWrap>;
+    const ChevronRight=p=><SvgWrap {...p}><polyline points="9 18 15 12 9 6"/></SvgWrap>;
+    const ChevronLeft=p=><SvgWrap {...p}><polyline points="15 18 9 12 15 6"/></SvgWrap>;
+    const Award=p=><SvgWrap {...p}><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></SvgWrap>;
+    const Plus=p=><SvgWrap {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></SvgWrap>;
+    const Flame=p=><SvgWrap {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></SvgWrap>;
+    const Mail=p=><SvgWrap {...p}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></SvgWrap>;
+    const Search=p=><SvgWrap {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></SvgWrap>;
+    const Play=p=><SvgWrap {...p} fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></SvgWrap>;
+    const Video=p=><SvgWrap {...p}><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></SvgWrap>;
+    const Camera=p=><SvgWrap {...p}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></SvgWrap>;
+    const Hash=p=><SvgWrap {...p}><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></SvgWrap>;
+    const Sparkles=p=><SvgWrap {...p}><path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/><path d="M5 3L5.8 5.2L8 6L5.8 6.8L5 9L4.2 6.8L2 6L4.2 5.2L5 3Z"/><path d="M19 13L19.8 15.2L22 16L19.8 16.8L19 19L18.2 16.8L16 16L18.2 15.2L19 13Z"/></SvgWrap>;
+    const Eye=p=><SvgWrap {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></SvgWrap>;
+    const Users=p=><SvgWrap {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></SvgWrap>;
+    const Home=p=><SvgWrap {...p}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></SvgWrap>;
+    const Compass=p=><SvgWrap {...p}><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></SvgWrap>;
+    const Lock=p=><SvgWrap {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></SvgWrap>;
+    const Star=p=><SvgWrap {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></SvgWrap>;
+    const ArrowLeft=p=><SvgWrap {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></SvgWrap>;
+
+    // ─── SUPABASE ─────────────────────────────────────────────────────────────
+    const SUPABASE_URL = "https://tqvcglwldmgbzkqanguy.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_kfSG8973B2j0wQ0zQbtFGQ_nL5SEcRM";
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ─── MOCK DATA ────────────────────────────────────────────────────────────
+
+    const GENRES = ["All","Fantasy","Romance","Sci-Fi","Horror","Mystery","Action","Drama","Comedy"];
+    const GRADIENTS = [
+      ["#3b0764","#1e1b4b"],["#4c0519","#1c1917"],["#134e4a","#1e3a5f"],
+      ["#78350f","#1c1917"],["#14532d","#1c2e4a"],["#1e3a8a","#312e81"],
+    ];
+
+    const STORIES = [
+      {
+        id:"s1", title:"Echoes of the Forgotten", author:"nightwriter_kai", authorId:"u1",
+        grad:0, genre:"Fantasy", tags:["magic","adventure","chosen one"],
+        likes:4821, chapterCount:42, trending:true, isNew:false,
+        description:"A young archivist discovers the history they've been taught is a lie — and only they can rewrite it.",
+        characters:[
+          { id:"ch1", name:"Mira", role:"Protagonist", description:"Quiet archivist with a gift for reading languages no one else can see." },
+          { id:"ch2", name:"The Shadow Voice", role:"Mystery", description:"A presence in the restricted wing. No face. No name. Just weight." },
+          { id:"ch3", name:"Grand Archivist", role:"Antagonist", description:"Dead for sixty years. Still wearing the sigil." },
+        ],
+        chapters:[
+          { id:"c1", num:1, title:"The Archive", content:`The dust had settled on the shelves of the Grand Archive for centuries, or so they said. Mira ran her fingers along the spine of a leather-bound tome, its gold lettering faded to near-nothing.
+
+She had been assigned to cataloguing the restricted wing — an honor, her supervisor called it. But Mira knew better. It was punishment for asking too many questions.
+
+"You're not supposed to be here," said a voice from the shadows.
+
+Mira didn't flinch. She had learned not to. In the Archive, voices came from everywhere and nowhere. But this one was different — it had weight. Presence.
+
+"Neither are you," she replied, pulling the tome from the shelf.
+
+The lamp in her hand guttered. When it steadied, the voice was gone. But on the cover of the tome, where no lettering had been before, three words rose out of the dark leather like a bruise:
+
+THEY LIED FIRST.
+
+Mira opened to the first page.` },
+          { id:"c2", num:2, title:"The First Lie", content:`The document was dated three hundred years before the Founding. That alone should have been impossible.
+
+The Founding was supposed to be the beginning of recorded history. Every schoolchild knew this. Every textbook confirmed it. The Grand Archive itself was built to commemorate it.
+
+Mira stared at the page, her lamp flickering in the draftless room. The ink was old but legible, written in a dialect she recognized from pre-Founding fragments — fragments the Archive officially did not have.
+
+She looked over her shoulder. The Archive breathed around her, its silence a pressure against her ears.
+
+She began to copy the document by hand. She did not trust the reproduction lenses tonight.
+
+Halfway through the second paragraph, she heard footsteps. Real ones, this time. Coming closer.
+
+She blew out her lamp.` },
+        ]
+      },
+      {
+        id:"s2", title:"Signal Lost", author:"cosmicdrift", authorId:"u2",
+        grad:2, genre:"Sci-Fi", tags:["space","survival","isolation"],
+        likes:3102, chapterCount:28, trending:true, isNew:false,
+        description:"The last transmission from deep space was supposed to be a distress call. It wasn't.",
+        characters:[
+          { id:"ch4", name:"Commander Yael Orin", role:"Protagonist", description:"Thirty-one hours without sleep. Runs on recycled coffee and spite." },
+          { id:"ch5", name:"Relay", role:"AI", description:"The ship's AI. Insists there is no incoming transmission." },
+        ],
+        chapters:[
+          { id:"c3", num:1, title:"Blackout", content:`Day 0.
+
+The signal came at 03:14 station time, which meant everyone was asleep. Everyone except Commander Yael Orin, who had not slept in thirty-one hours and was running on recycled coffee and spite.
+
+She heard it through her earpiece — not words exactly, but something shaped like words. Like someone had taken language and squeezed it through a very small space.
+
+"Relay, are you getting this?" she said.
+
+"Negative, Commander. There is no incoming transmission."
+
+But she heard it still. She pulled the earpiece out and held it between her fingers. The voice continued, faint as a heartbeat, emanating from the small speaker.
+
+It was saying her name.` },
+        ]
+      },
+      {
+        id:"s3", title:"The Reckless Heart", author:"sunflower_prose", authorId:"u3",
+        grad:1, genre:"Romance", tags:["slow burn","rivals","found family"],
+        likes:7443, chapterCount:67, trending:false, isNew:true,
+        description:"Two food critics. One restaurant. A review that could destroy everything — or change it.",
+        characters:[
+          { id:"ch6", name:"Jade Mercer", role:"Protagonist", description:"Food critic with fake reservations and a real grudge." },
+          { id:"ch7", name:"Chef Marco", role:"Love Interest", description:"Head chef. Flour on his sleeve. Cares too much about what strangers think." },
+        ],
+        chapters:[
+          { id:"c4", num:1, title:"Table for Two", content:`The reservation was under a fake name. It always was.
+
+Jade Mercer slid into the corner booth of Elan like she owned it — which she absolutely did not — and ordered still water without looking at the menu. She had memorized it three days ago.
+
+She had also memorized the face of the head chef. Dark eyes, flour on his left sleeve, the particular posture of someone who cared too much about what strangers thought of their food. He hadn't noticed her yet.
+
+Good.
+
+The amuse-bouche arrived: a single spoonful of something cold and golden that dissolved before she could name it. She wrote nothing down. She never did. Notebooks were for people who hadn't learned to carry everything in their chest.
+
+The chef came out of the kitchen scanning the room. His eyes landed on her. He knew.` },
+        ]
+      },
+      {
+        id:"s4", title:"Hollow Frequency", author:"static_echo", authorId:"u4",
+        grad:3, genre:"Horror", tags:["paranormal","small town","mystery"],
+        likes:2891, chapterCount:19, trending:false, isNew:true,
+        description:"Every radio in Dunmore tuned to the same station at midnight. No one could explain why.",
+        characters:[
+          { id:"ch8", name:"Patrice", role:"Protagonist", description:"First one to hear the voice. Last one to leave her radio on." },
+          { id:"ch9", name:"The Voice", role:"Entity", description:"Almost makes sense. Getting clearer every night." },
+        ],
+        chapters:[
+          { id:"c5", num:1, title:"White Noise", content:`It started with the radios.
+
+Not phones, not televisions — just the old analog sets that people kept in garages and kitchens and the backs of cars. At midnight on the first Tuesday of October, they all changed.
+
+Not to static. To something worse than static: a voice that almost made sense. That tilted at the edge of language and then slid away, leaving you with the sensation of having understood something important that you could no longer remember.
+
+Patrice heard it first. By Friday, half the town was leaving their radios on.
+
+"It's saying something," her neighbor kept insisting. "I'm almost sure it's saying something."
+
+Patrice didn't disagree. But she had noticed something the others hadn't. The voice was getting clearer.` },
+        ]
+      },
+      {
+        id:"s5", title:"Reborn in Ash", author:"emberquill", authorId:"u5",
+        grad:4, genre:"Action", tags:["cultivation","revenge","strong mc"],
+        likes:9201, chapterCount:134, trending:true, isNew:false,
+        description:"He died at the peak of his power. He woke up at the bottom. They will regret it.",
+        characters:[
+          { id:"ch10", name:"Wei Liang (Elder)", role:"Protagonist", description:"Forty years at the summit. Thrown off on a Wednesday." },
+          { id:"ch11", name:"Wei Liang (Young)", role:"Protagonist", description:"Same soul, fourteen-year-old body. Running on patience." },
+          { id:"ch12", name:"The Three Disciples", role:"Antagonists", description:"They rehearsed this for a long time." },
+        ],
+        chapters:[
+          { id:"c6", num:1, title:"The Fall", content:`He had stood at the summit of the Jade Spire for forty years.
+
+They threw him off on a Wednesday.
+
+He remembered the faces clearly — his three most trusted disciples, their expressions blank with the careful blankness of people who had rehearsed this for a long time. He remembered the cold mountain air. The clouds below his feet.
+
+Then: nothing.
+
+Then: dirt in his mouth, and a sky he didn't recognize, and a body that felt like it belonged to someone else. Someone very, very young.
+
+He sat up. His hands — a boy's hands, fourteen at most — were trembling. Not with fear. He had forgotten fear decades ago. With something else. Something colder.
+
+He recognized it after a moment. It was patience.` },
+        ]
+      },
+      {
+        id:"s6", title:"Glass City Blues", author:"neonink", authorId:"u6",
+        grad:5, genre:"Mystery", tags:["noir","detective","neo-future"],
+        likes:1654, chapterCount:23, trending:false, isNew:true,
+        description:"Detective Sola Adeyemi doesn't believe in coincidences. Three deaths, one city, zero motives.",
+        characters:[
+          { id:"ch13", name:"Sola Adeyemi", role:"Protagonist", description:"Doesn't believe in coincidences. Two fingers on the glass." },
+          { id:"ch14", name:"Kwame", role:"Partner", description:"Shows up with terrible coffee. Asks the right questions." },
+        ],
+        chapters:[
+          { id:"c7", num:1, title:"The First Body", content:`Rain on glass.
+
+Sola pressed two fingers against the window of the 40th floor and watched the city smear below her. Behind her, forensics was doing what forensics did — cataloguing the mess that used to be a person.
+
+"No ID," said her partner Kwame, materializing beside her with two cups of terrible coffee. "No wallet, no chip, no prints. Like they didn't want to be found."
+
+"Nobody doesn't want to be found," Sola said. "Somebody didn't want them found."
+
+She turned from the window. The room was clean in the way that very expensive rooms are clean when someone has spent considerable effort making them look untouched. It was the clean of a warning.` },
+        ]
+      },
+    ];
+
+    const INIT_FANVERS = {
+      c1:[
+        { id:"fv1", chapterId:"c1", storyId:"s1", fan:"phantom_reader", content:`The dust had settled on the shelves of the Grand Archive for centuries, or so they said. Mira ran her fingers along the spine of a leather-bound tome — but this one was warm.
+
+"You're the one," said a voice from the shadows. Not threatening. Almost gentle.
+
+Mira pulled the tome free. Its cover was blank, but as she held it, words began to rise like ink swimming upward through water.
+
+"I know," she said. She had always known.`, likes:312, adopted:false, parentFanver:null, childFanvers:["fv3"], timestamp:"3h ago" },
+        { id:"fv2", chapterId:"c1", storyId:"s1", fan:"starfall_writes", content:`Mira's fingers stopped on a tome whose letters only she could see: FORBIDDEN HISTORY, VOL. 7.
+
+"You shouldn't be able to read that," said a voice from the shadows.
+
+The figure in the doorway wore the sigil of the Grand Archivist — who had been dead for sixty years.
+
+"And yet," she said.`, likes:489, adopted:true, parentFanver:null, childFanvers:[], timestamp:"5h ago" },
+        { id:"fv3", chapterId:"c1", storyId:"s1", fan:"quill_chaser", content:`Mira opened the book and found it was a mirror — not reflecting her face but her choices. Every path she had taken glowed in soft gold; every path she hadn't taken shimmered in silver.
+
+"These are all the times you almost found us," said the voice. There were hundreds of silver threads.`, likes:87, adopted:false, parentFanver:"fv1", childFanvers:[], timestamp:"1h ago" },
+      ],
+      c6:[
+        { id:"fv4", chapterId:"c6", storyId:"s5", fan:"xianxia_fan99", content:`He had stood at the summit of the Jade Spire for forty years. They threw him off on a Wednesday.
+
+What they didn't know was that he had allowed it. The ritual required a willing sacrifice — the sacrifice of pride. And what greater pride than pretending to be defeated?
+
+He remembered smiling as they fell away above him. Then: nothing. Then: a second chance, and a list.`, likes:1204, adopted:false, parentFanver:null, childFanvers:[], timestamp:"2h ago" },
+      ],
+      c2:[],c3:[],c4:[],c5:[],c7:[],
+    };
+
+    const INIT_COMMENTS = {
+      c1:[
+        { id:"cm1", user:"wordblade_7", text:"The way the voice just appears with no description?? Incredibly eerie.", likes:89, time:"4h ago" },
+        { id:"cm2", user:"the_long_shelf", text:"Punishment that is secretly a gift. Classic setup, executed perfectly.", likes:31, time:"6h ago" },
+        { id:"cm3", user:"phantom_reader", text:"Mira doesn't flinch. I don't flinch. We are one.", likes:47, time:"2h ago" },
+      ],
+      c6:[
+        { id:"cm4", user:"powerscaler_anon", text:"They threw him off on a Wednesday. I will be thinking about that sentence for weeks.", likes:441, time:"1h ago" },
+        { id:"cm5", user:"revenge_arc_stan", text:"Finally a cultivation MC who feels vulnerable first. So refreshing.", likes:203, time:"3h ago" },
+      ],
+      c2:[],c3:[],c4:[],c5:[],c7:[],
+    };
+
+    const INIT_COSPLAYS = [
+      { id:"cp1", fan:"velvet_armor", storyId:"s1", storyTitle:"Echoes of the Forgotten", characterId:"ch1", character:"Mira", caption:"Finally finished Mira's archivist robes! Took 3 weeks 😭", likes:892, views:4201, videoUrl:null, thumbnail:0, time:"1d ago" },
+      { id:"cp2", fan:"starforge_cos", storyId:"s5", storyTitle:"Reborn in Ash", characterId:"ch11", character:"Wei Liang (Young)", caption:"He woke up at the bottom. So did I after staying up all night for this.", likes:2341, views:11200, videoUrl:null, thumbnail:4, time:"3d ago" },
+      { id:"cp3", fan:"inkdrop_irl", storyId:"s3", storyTitle:"The Reckless Heart", characterId:"ch6", character:"Jade Mercer", caption:"Channeling my inner food critic villain era 🍴", likes:567, views:3100, videoUrl:null, thumbnail:1, time:"5h ago" },
+      { id:"cp4", fan:"neon_coscraft", storyId:"s6", storyTitle:"Glass City Blues", characterId:"ch13", character:"Sola Adeyemi", caption:"Rain on glass. Detective fit complete.", likes:1103, views:6800, videoUrl:null, thumbnail:5, time:"2d ago" },
+      { id:"cp5", fan:"arcane_thread", storyId:"s1", storyTitle:"Echoes of the Forgotten", characterId:"ch2", character:"The Shadow Voice", caption:"Nobody asked for a faceless character cosplay but here we are", likes:441, views:2900, videoUrl:null, thumbnail:0, time:"4h ago" },
+      { id:"cp6", fan:"void_stitch", storyId:"s2", storyTitle:"Signal Lost", characterId:"ch4", character:"Commander Yael Orin", caption:"Day 0. No sleep. Running on recycled coffee. In character.", likes:788, views:5500, videoUrl:null, thumbnail:2, time:"6h ago" },
+    ];
+
+    // ─── HELPERS ─────────────────────────────────────────────────────────────
+
+    const fmtNum = n => n >= 1000 ? (n/1000).toFixed(1)+"k" : String(n);
+
+    function CoverGrad({ grad, size="card" }) {
+      const [a,b] = GRADIENTS[grad % GRADIENTS.length];
+      const cls = {
+        card: "w-full h-40 sm:h-44 rounded-t-xl flex items-end p-3",
+        cover: "w-24 h-36 sm:w-32 sm:h-44 rounded-xl flex-shrink-0",
+        sm: "w-10 h-14 rounded-lg flex-shrink-0",
+        hero: "w-full h-52 rounded-2xl flex items-end p-4",
+      };
+      return (
+        <div className={cls[size]||cls.card} style={{background:`linear-gradient(135deg,${a},${b})`}}>
+          {size==="card"&&<BookOpen size={24} style={{color:"rgba(255,255,255,0.18)"}}/>}
+          {size==="hero"&&<BookOpen size={32} style={{color:"rgba(255,255,255,0.18)"}}/>}
+        </div>
+      );
+    }
+
+    function Tag({label}) {
+      return <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-xs">{label}</span>;
+    }
+
+    function Pill({children, active, onClick, pink}) {
+      const on = pink ? "bg-pink-600 text-white" : "bg-purple-600 text-white";
+      return (
+        <button onClick={onClick} className={`px-3 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap ${active?on:"bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"}`}>
+          {children}
+        </button>
+      );
+    }
+
+    // ─── BOTTOM NAV ───────────────────────────────────────────────────────────
+
+    function BottomNav({ view, onNav, currentUser, unread }) {
+      const tabs = [
+        { id:"home",    icon:<Home size={22}/>,    label:"Home" },
+        { id:"search",  icon:<Compass size={22}/>, label:"Discover" },
+        { id:"cosplay", icon:<Camera size={22}/>,  label:"Cosplay" },
+        { id: currentUser ? "dashboard" : "auth", icon:<User size={22}/>, label: currentUser ? "Profile" : "Sign In" },
+      ];
+      return (
+        <div className="fixed bottom-0 left-0 right-0 z-50 sm:hidden bg-zinc-950/95 border-t border-zinc-800 backdrop-blur">
+          <div className="flex items-center justify-around px-2 py-1 pb-2">
+            {tabs.map(t => {
+              const isActive = view === t.id;
+              const isPink = t.id === "cosplay";
+              return (
+                <button key={t.id} onClick={()=>onNav(t.id)}
+                  className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition relative ${isActive?(isPink?"text-pink-400":"text-purple-400"):"text-zinc-500"}`}>
+                  {t.id==="dashboard"&&currentUser&&unread>0&&<span className="absolute top-1.5 right-2.5 w-2 h-2 bg-purple-500 rounded-full"/>}
+                  {t.icon}
+                  <span className="text-[10px] font-medium">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function TopBar({ title, onBack, right }) {
+      return (
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+          {onBack&&(
+            <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-full bg-zinc-800/80 text-zinc-300 flex-shrink-0">
+              <ChevronLeft size={20}/>
+            </button>
+          )}
+          {title&&<p className="font-semibold text-base truncate flex-1">{title}</p>}
+          {right&&<div className="ml-auto flex-shrink-0">{right}</div>}
+        </div>
+      );
+    }
+
+    // ─── HOME PAGE ────────────────────────────────────────────────────────────
+
+    function HomePage({ stories, activeTab, setActiveTab, activeGenre, setActiveGenre, onStoryClick, liked, onLike, onUpload, currentUser }) {
+      const featured = stories.find(s=>s.trending);
+      return (
+        <div className="pb-24 sm:pb-6">
+          <div className="hidden sm:block text-center py-10 px-4">
+            <h1 className="text-4xl font-bold mb-3 tracking-tight">Stories worth <span className="text-purple-400">forking.</span></h1>
+            <p className="text-zinc-400 max-w-md mx-auto text-sm">Read, write, and remix. Fan versions live alongside the original — and the best ones get adopted.</p>
+            <button onClick={onUpload} className="mt-5 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 rounded-xl font-medium text-sm transition inline-flex items-center gap-2"><Plus size={16}/>Post a Story</button>
+          </div>
+          {featured&&(
+            <div className="sm:hidden px-4 pt-4 pb-3">
+              <button onClick={()=>onStoryClick(featured)} className="w-full text-left relative overflow-hidden rounded-2xl">
+                <CoverGrad grad={featured.grad} size="hero"/>
+                <div className="absolute inset-0 rounded-2xl" style={{background:"linear-gradient(to top,rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.2) 60%,transparent 100%)"}}/>
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30 mb-2 inline-flex items-center gap-1"><Flame size={10}/>Trending</span>
+                  <h2 className="font-bold text-lg text-white leading-tight">{featured.title}</h2>
+                  <p className="text-zinc-300 text-xs mt-1">by {featured.author} · {featured.genre}</p>
+                </div>
+              </button>
+            </div>
+          )}
+          <div className="sm:hidden px-4 pb-3">
+            <button onClick={onUpload} className="w-full py-3 bg-purple-700/30 border border-purple-700/40 rounded-2xl font-medium text-sm text-purple-300 flex items-center justify-center gap-2">
+              <Plus size={16}/>Post a Story
+            </button>
+          </div>
+          <div className="flex items-center gap-2 px-4 mb-3">
+            <Pill active={activeTab==="trending"} onClick={()=>setActiveTab("trending")}><span className="flex items-center gap-1.5"><TrendingUp size={12}/>Trending</span></Pill>
+            <Pill active={activeTab==="new"} onClick={()=>setActiveTab("new")}><span className="flex items-center gap-1.5"><Clock size={12}/>New</span></Pill>
+            <Pill active={activeTab==="all"} onClick={()=>setActiveTab("all")}>All</Pill>
+          </div>
+          <div className="flex gap-2 px-4 overflow-x-auto pb-3 mb-2" style={{scrollbarWidth:"none"}}>
+            {GENRES.map(g=><Pill key={g} active={activeGenre===g} onClick={()=>setActiveGenre(g)}>{g}</Pill>)}
+          </div>
+          <div className="px-4">
+            {stories.length===0
+              ? <div className="text-center py-16 text-zinc-500">No stories found.</div>
+              : <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {stories.map(s=><StoryCard key={s.id} story={s} onClick={()=>onStoryClick(s)} liked={liked.has(s.id)} onLike={()=>onLike(s.id)}/>)}
+                </div>
+            }
+          </div>
+        </div>
+      );
+    }
+
+    function StoryCard({ story, onClick, liked, onLike }) {
+      return (
+        <div onClick={onClick} className="bg-zinc-900 rounded-2xl border border-zinc-800 transition cursor-pointer overflow-hidden active:scale-95 sm:active:scale-100 sm:hover:border-purple-800">
+          <CoverGrad grad={story.grad} size="card"/>
+          <div className="p-3">
+            <h3 className="font-bold text-white text-xs leading-snug line-clamp-2 mb-0.5">{story.title}</h3>
+            <p className="text-zinc-500 text-[10px] mb-2">by {story.author}</p>
+            <div className="flex items-center justify-between text-[10px] text-zinc-500">
+              <button className={`flex items-center gap-1 transition ${liked?"text-pink-400":""}`} onClick={e=>{e.stopPropagation();onLike();}}>
+                <Heart size={11} fill={liked?"currentColor":"none"}/>{fmtNum(story.likes+(liked?1:0))}
+              </button>
+              <span className="px-1.5 py-0.5 rounded-full bg-purple-950 text-purple-300">{story.genre}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── DISCOVER PAGE ────────────────────────────────────────────────────────
+
+    function DiscoverPage({ stories, onStoryClick }) {
+      const [query,setQuery]=useState("");
+      const TAGS=["#magic","#revenge","#slow burn","#space","#cultivation","#noir","#chosen one","#paranormal","#rivals","#survival"];
+      const results=query.trim()?stories.filter(s=>s.title.toLowerCase().includes(query.toLowerCase())||s.author.toLowerCase().includes(query.toLowerCase())||s.tags.some(t=>t.toLowerCase().includes(query.toLowerCase()))||s.genre.toLowerCase().includes(query.toLowerCase())||s.characters?.some(c=>c.name.toLowerCase().includes(query.toLowerCase()))):[];
+      const featured=[...stories].sort((a,b)=>b.likes-a.likes).slice(0,3);
+      return (
+        <div className="pb-24 sm:pb-6">
+          <div className="px-4 pt-4 pb-3">
+            <div className="relative w-full">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"/>
+              <input type="text" placeholder="Search stories, authors, tags, characters…" value={query} onChange={e=>setQuery(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl pl-9 pr-8 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition"/>
+              {query&&<button onClick={()=>setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"><X size={13}/></button>}
+            </div>
+          </div>
+          {!query.trim()&&(
+            <>
+              <div className="px-4 mb-5">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Hash size={11}/>Trending Tags</p>
+                <div className="flex flex-wrap gap-2">
+                  {TAGS.map(t=><button key={t} onClick={()=>setQuery(t.slice(1))} className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-full text-sm text-zinc-300">{t}</button>)}
+                </div>
+              </div>
+              <div className="px-4">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Sparkles size={11}/>Featured</p>
+                <div className="space-y-2">
+                  {featured.map((s,i)=>(
+                    <button key={s.id} onClick={()=>onStoryClick(s)} className="w-full flex items-center gap-3 p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-left active:bg-zinc-800 transition">
+                      <span className="text-xl font-black text-zinc-700 w-5 text-center flex-shrink-0">{i+1}</span>
+                      <CoverGrad grad={s.grad} size="sm"/>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-white truncate">{s.title}</p>
+                        <p className="text-zinc-500 text-xs">by {s.author} · {s.genre}</p>
+                      </div>
+                      <p className="text-xs text-pink-400 flex items-center gap-1 flex-shrink-0"><Heart size={10}/>{fmtNum(s.likes)}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          {query.trim()&&(
+            <div className="px-4">
+              <p className="text-zinc-500 text-xs mb-3">{results.length} result{results.length!==1?"s":""} for "{query}"</p>
+              {results.length===0
+                ?<div className="text-center py-16"><Search size={32} className="mx-auto mb-3 text-zinc-700"/><p className="text-zinc-500 text-sm">Nothing found.</p></div>
+                :<div className="space-y-2">{results.map(s=>{
+                    const mc=s.characters?.find(c=>c.name.toLowerCase().includes(query.toLowerCase()));
+                    return(
+                      <button key={s.id} onClick={()=>onStoryClick(s)} className="w-full flex items-center gap-3 p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-left active:bg-zinc-800 transition">
+                        <CoverGrad grad={s.grad} size="sm"/>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-white truncate">{s.title}</p>
+                          <p className="text-zinc-500 text-xs">by {s.author} · {s.genre}</p>
+                          {mc&&<p className="text-pink-400 text-xs mt-0.5">Character: {mc.name}</p>}
+                        </div>
+                        <ChevronRight size={14} className="text-zinc-700 flex-shrink-0"/>
+                      </button>
+                    );
+                  })}</div>
+              }
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── STORY PAGE ───────────────────────────────────────────────────────────
+
+    function StoryPage({ story, onBack, onChapterClick, fanvers, cosplays, onCosplayNav, onCharacterCosplay, onAuthorClick }) {
+      const totalFanvers=story.chapters.reduce((a,ch)=>a+(fanvers[ch.id]?.length||0),0);
+      const storyCosplays=cosplays.filter(c=>c.storyId===story.id);
+      return (
+        <div className="pb-24 sm:pb-6">
+          <div className="sticky top-0 z-30">
+            <TopBar onBack={onBack} title={story.title}
+              right={storyCosplays.length>0&&<button onClick={onCosplayNav} className="flex items-center gap-1 text-xs text-pink-400 px-2 py-1 bg-pink-950/40 rounded-full border border-pink-900"><Camera size={11}/>{storyCosplays.length}</button>}
+            />
+          </div>
+          <div className="px-4">
+            <div className="flex gap-4 py-4">
+              <CoverGrad grad={story.grad} size="cover"/>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-950 text-purple-300">{story.genre}</span>
+                <h1 className="text-lg font-bold mt-1.5 mb-0.5 leading-tight">{story.title}</h1>
+                <p className="text-zinc-400 text-sm mb-2">by <button onClick={onAuthorClick} className="text-purple-300 hover:text-purple-200 transition underline underline-offset-2">{story.author}</button></p>
+                <div className="flex items-center gap-3 text-xs text-zinc-400 flex-wrap">
+                  <span className="flex items-center gap-1"><Heart size={12} className="text-pink-400"/>{fmtNum(story.likes)}</span>
+                  <span className="flex items-center gap-1"><BookOpen size={12}/>{story.chapterCount} ch</span>
+                  <span className="flex items-center gap-1"><GitBranch size={12} className="text-purple-400"/>{totalFanvers}</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-zinc-300 text-sm leading-relaxed mb-4">{story.description}</p>
+            <div className="flex flex-wrap gap-1.5 mb-5">{story.tags.map(t=><Tag key={t} label={`#${t}`}/>)}</div>
+            {story.characters?.length>0&&(
+              <div className="mb-5">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Users size={11} className="text-pink-400"/>Characters</p>
+                <div className="flex gap-3 overflow-x-auto pb-1" style={{scrollbarWidth:"none"}}>
+                  {story.characters.map(char=>{
+                    const cc=cosplays.filter(c=>c.storyId===story.id&&c.characterId===char.id);
+                    return(
+                      <button key={char.id} onClick={()=>onCharacterCosplay(char,story)} className="flex-shrink-0 w-28 p-3 bg-zinc-900 border border-zinc-800 active:border-pink-800 rounded-2xl text-left transition">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pink-900 to-rose-950 flex items-center justify-center mb-2"><User size={16} className="text-pink-300"/></div>
+                        <p className="font-semibold text-xs text-white leading-tight">{char.name}</p>
+                        <p className="text-zinc-600 text-[10px] mt-0.5">{char.role}</p>
+                        {cc.length>0&&<p className="text-pink-400 text-[10px] mt-1 flex items-center gap-0.5"><Camera size={9}/>{cc.length}</p>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><BookOpen size={11}/>Chapters</p>
+            <div className="space-y-2">
+              {story.chapters.map(ch=>{
+                const fvCount=fanvers[ch.id]?.length||0;
+                return(
+                  <button key={ch.id} onClick={()=>onChapterClick(ch)} className="w-full flex items-center justify-between p-4 bg-zinc-900 active:bg-zinc-800 rounded-2xl border border-zinc-800 transition text-left">
+                    <div>
+                      <span className="text-zinc-600 text-xs">Ch. {ch.num}</span>
+                      <p className="font-medium text-sm text-white">{ch.title}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                      {fvCount>0&&<span className="flex items-center gap-1 text-purple-400"><GitBranch size={11}/>{fvCount}</span>}
+                      <ChevronRight size={16} className="text-zinc-700"/>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── CHAPTER READER ───────────────────────────────────────────────────────
+
+    function ChapterReader({ story, chapter, onBack, fanvers, comments, setComments, newComment, setNewComment, currentUser, onWriteFanver, onViewFanver, liked, onLike, onChapterNav, onAuthorClick }) {
+      const [commentLikes,setCommentLikes]=useState({});
+      const [progress,setProgress]=useState(0);
+      const contentRef=useRef(null);
+      const rootFanvers=fanvers.filter(fv=>!fv.parentFanver);
+      const chapterIndex=story.chapters.findIndex(ch=>ch.id===chapter.id);
+      const prevChapter=chapterIndex>0?story.chapters[chapterIndex-1]:null;
+      const nextChapter=chapterIndex<story.chapters.length-1?story.chapters[chapterIndex+1]:null;
+
+      useEffect(()=>{
+        const fn=()=>{
+          const el=contentRef.current; if(!el) return;
+          const rect=el.getBoundingClientRect();
+          const total=el.offsetHeight-window.innerHeight;
+          if(total<=0){setProgress(100);return;}
+          setProgress(Math.min(100,Math.round((Math.max(0,-rect.top)/total)*100)));
+        };
+        window.addEventListener("scroll",fn,{passive:true}); fn();
+        return()=>window.removeEventListener("scroll",fn);
+      },[chapter.id]);
+
+      const submitComment=()=>{
+        if(!newComment.trim()) return;
+        setComments(prev=>({...prev,[chapter.id]:[{id:`cm_${Date.now()}`,user:currentUser?.username||"guest_reader",text:newComment,likes:0,time:"just now"},...(prev[chapter.id]||[])]}));
+        setNewComment("");
+      };
+
+      return(
+        <div ref={contentRef} className="pb-24 sm:pb-8">
+          <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-zinc-800">
+            <div className="h-full bg-purple-500 transition-all duration-100" style={{width:`${progress}%`}}/>
+          </div>
+          <div className="sticky top-0 z-30">
+            <TopBar onBack={onBack} title={`Ch.${chapter.num} · ${chapter.title}`}
+              right={<span className="text-xs px-2 py-1 bg-zinc-800 rounded-full flex items-center gap-1 text-zinc-500"><Eye size={10} className="text-purple-400"/>{progress}%</span>}
+            />
+          </div>
+          <div className="max-w-2xl mx-auto px-5 pt-6">
+            <p className="text-zinc-500 text-xs mb-6">by <button onClick={onAuthorClick} className="text-purple-300 hover:text-purple-200 transition underline underline-offset-2">{story.author}</button></p>
+            <div className="mb-10">{chapter.content.split("\n\n").map((p,i)=><p key={i} className="text-zinc-200 text-base leading-8 mb-5">{p}</p>)}</div>
+            <div className="flex items-center gap-3 mb-10 py-5 border-t border-b border-zinc-800">
+              <button onClick={onLike} className={`flex items-center gap-2 flex-1 justify-center py-3 rounded-2xl text-sm font-medium transition ${liked?"bg-pink-950 text-pink-400":"bg-zinc-800 text-zinc-400"}`}>
+                <Heart size={16} fill={liked?"currentColor":"none"}/>Like
+              </button>
+              <button onClick={()=>onWriteFanver(null)} className="flex items-center gap-2 flex-1 justify-center py-3 bg-purple-900/50 rounded-2xl text-sm font-medium text-purple-300 transition">
+                <GitBranch size={16}/>Fanver
+              </button>
+            </div>
+            {(prevChapter||nextChapter)&&(
+              <div className="flex gap-3 mb-10">
+                {prevChapter?(
+                  <button onClick={()=>onChapterNav(prevChapter)} className="flex-1 flex items-center gap-2 p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-left active:bg-zinc-800 transition min-w-0">
+                    <ChevronLeft size={16} className="text-zinc-600 flex-shrink-0"/>
+                    <div className="min-w-0"><p className="text-zinc-600 text-[10px]">Previous</p><p className="text-zinc-300 text-xs font-medium truncate">Ch.{prevChapter.num}: {prevChapter.title}</p></div>
+                  </button>
+                ):<div className="flex-1"/>}
+                {nextChapter?(
+                  <button onClick={()=>onChapterNav(nextChapter)} className="flex-1 flex items-center gap-2 p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-right active:bg-zinc-800 transition min-w-0 justify-end">
+                    <div className="min-w-0"><p className="text-zinc-600 text-[10px]">Next</p><p className="text-zinc-300 text-xs font-medium truncate">Ch.{nextChapter.num}: {nextChapter.title}</p></div>
+                    <ChevronRight size={16} className="text-zinc-600 flex-shrink-0"/>
+                  </button>
+                ):<div className="flex-1"/>}
+              </div>
+            )}
+            {rootFanvers.length>0&&(
+              <div className="mb-10">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-4 flex items-center gap-1.5"><GitBranch size={11} className="text-purple-400"/>Fanvers ({rootFanvers.length})</p>
+                <div className="space-y-3">{rootFanvers.map(fv=><FanverCard key={fv.id} fv={fv} allFanvers={fanvers} onClick={()=>onViewFanver(fv)}/>)}</div>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-zinc-500 uppercase tracking-wider mb-4 flex items-center gap-1.5"><MessageCircle size={11}/>Comments ({comments.length})</p>
+              <div className="flex gap-3 mb-6">
+                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0 mt-0.5"><User size={14} className="text-zinc-500"/></div>
+                <div className="flex-1">
+                  <textarea value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder="Leave a comment…" className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-3 text-sm text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-purple-600 transition" rows={2}/>
+                  <div className="flex justify-end mt-2">
+                    <button onClick={submitComment} disabled={!newComment.trim()} className="px-5 py-2 bg-purple-600 disabled:opacity-40 rounded-xl text-sm font-medium">Post</button>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {comments.map(cm=>(
+                  <div key={cm.id} className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0"><User size={13} className="text-zinc-600"/></div>
+                    <div>
+                      <div className="flex items-baseline gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-purple-300">{cm.user}</span>
+                        <span className="text-xs text-zinc-600">{cm.time}</span>
+                      </div>
+                      <p className="text-zinc-300 text-sm">{cm.text}</p>
+                      <button onClick={()=>setCommentLikes(p=>({...p,[cm.id]:!p[cm.id]}))} className={`flex items-center gap-1 mt-1.5 text-xs ${commentLikes[cm.id]?"text-pink-400":"text-zinc-600"}`}>
+                        <Heart size={11} fill={commentLikes[cm.id]?"currentColor":"none"}/>{cm.likes+(commentLikes[cm.id]?1:0)}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function FanverCard({ fv, allFanvers, onClick }) {
+      const childCount=allFanvers.filter(f=>f.parentFanver===fv.id).length;
+      return(
+        <button onClick={onClick} className="w-full text-left p-4 bg-zinc-900 active:bg-zinc-800 border border-zinc-800 rounded-2xl transition">
+          <div className="flex items-center gap-2 mb-2">
+            <GitBranch size={13} className="text-purple-400"/>
+            <span className="text-purple-300 text-xs font-medium">{fv.fan}</span>
+            {fv.adopted&&<span className="flex items-center gap-1 px-1.5 py-0.5 bg-green-950 text-green-400 text-xs rounded-full"><Check size={10}/>Adopted</span>}
+            <span className="text-zinc-600 text-xs ml-auto">{fv.timestamp}</span>
+          </div>
+          <p className="text-zinc-300 text-sm leading-relaxed line-clamp-3">{fv.content}</p>
+          <div className="flex items-center gap-4 mt-3 text-xs text-zinc-500">
+            <span className="flex items-center gap-1"><Heart size={11}/>{fmtNum(fv.likes)}</span>
+            {childCount>0&&<span className="flex items-center gap-1 text-purple-500"><GitBranch size={11}/>{childCount} fork{childCount!==1?"s":""}</span>}
+            <span className="ml-auto text-purple-400">Read →</span>
+          </div>
+        </button>
+      );
+    }
+
+    function FanverView({ fanver, story, chapter, allFanvers, onBack, onFork, currentUser, isAuthor, onAdopt, onViewChild }) {
+      const [adoptedLocal,setAdoptedLocal]=useState(fanver.adopted);
+      const [liked,setLiked]=useState(false);
+      const children=allFanvers.filter(f=>f.parentFanver===fanver.id);
+      const parent=fanver.parentFanver?allFanvers.find(f=>f.id===fanver.parentFanver):null;
+      return(
+        <div className="pb-24 sm:pb-6">
+          <div className="sticky top-0 z-30"><TopBar onBack={onBack} title={`Fanver by ${fanver.fan}`}/></div>
+          <div className="max-w-2xl mx-auto px-5 pt-4">
+            {parent&&<div className="mb-4 p-3 bg-zinc-900 rounded-2xl border border-zinc-800 text-xs text-zinc-500 flex items-center gap-2"><GitBranch size={12} className="text-purple-500"/>Forked from <span className="text-purple-300">{parent.fan}'s Fanver</span></div>}
+            <p className="text-zinc-500 text-xs mb-5">Remix of "{story.title}" · Ch.{chapter.num}: {chapter.title}</p>
+            {(adoptedLocal||fanver.adopted)&&<div className="mb-4 flex items-center gap-2 px-3 py-2 bg-green-950/40 border border-green-900 rounded-2xl text-xs text-green-400"><Check size={12}/>Adopted by the author</div>}
+            <div className="mb-8">{fanver.content.split("\n\n").map((p,i)=><p key={i} className="text-zinc-200 text-base leading-8 mb-5">{p}</p>)}</div>
+            <div className="flex items-center gap-3 mb-8 py-5 border-t border-b border-zinc-800">
+              <button onClick={()=>setLiked(l=>!l)} className={`flex items-center gap-2 flex-1 justify-center py-3 rounded-2xl text-sm font-medium ${liked?"bg-pink-950 text-pink-400":"bg-zinc-800 text-zinc-400"}`}>
+                <Heart size={16} fill={liked?"currentColor":"none"}/>{fmtNum(fanver.likes+(liked?1:0))}
+              </button>
+              <button onClick={onFork} className="flex items-center gap-2 flex-1 justify-center py-3 bg-purple-900/50 rounded-2xl text-sm font-medium text-purple-300"><GitBranch size={16}/>Fork</button>
+              {isAuthor&&!adoptedLocal&&!fanver.adopted&&(
+                <button onClick={()=>{setAdoptedLocal(true);onAdopt(fanver.id);}} className="flex items-center gap-2 flex-1 justify-center py-3 bg-green-900/50 rounded-2xl text-sm font-medium text-green-300"><Award size={16}/>Adopt</button>
+              )}
+            </div>
+            {children.length>0&&(
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><GitBranch size={11} className="text-purple-400"/>Forks ({children.length})</p>
+                <div className="space-y-3 border-l-2 border-purple-900/50 pl-4">
+                  {children.map(child=><FanverCard key={child.id} fv={child} allFanvers={allFanvers} onClick={()=>onViewChild(child)}/>)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function FanverWriter({ story, chapter, parentFanver, fanverText, setFanverText, onBack, onSubmit }) {
+      return(
+        <div className="pb-24 sm:pb-6">
+          <div className="sticky top-0 z-30"><TopBar onBack={onBack} title={parentFanver?"Fork a Fanver":"Write a Fanver"}/></div>
+          <div className="max-w-2xl mx-auto px-4 pt-4">
+            <p className="text-zinc-400 text-sm mb-3">"{story.title}" · Ch.{chapter.num}: {chapter.title}</p>
+            {parentFanver&&<div className="mb-4 p-3 bg-zinc-900 rounded-2xl border border-purple-900 text-xs text-zinc-400">Forking <span className="text-purple-300 font-medium">{parentFanver.fan}</span>'s version</div>}
+            <details className="mb-4 group">
+              <summary className="text-sm text-zinc-500 cursor-pointer list-none flex items-center gap-2 py-2"><ChevronRight size={14} className="group-open:rotate-90 transition-transform"/>Show original</summary>
+              <div className="mt-2 p-4 bg-zinc-900 rounded-2xl border border-zinc-800 text-zinc-400 text-sm leading-7 max-h-48 overflow-y-auto">{chapter.content.split("\n\n").map((p,i)=><p key={i} className="mb-3">{p}</p>)}</div>
+            </details>
+            <textarea value={fanverText} onChange={e=>setFanverText(e.target.value)} placeholder="Start writing your version…" className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl p-4 text-sm text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-purple-600 transition leading-7 mb-2" rows={14}/>
+            <p className="text-xs text-zinc-600 mb-4">{fanverText.length} chars · min 50</p>
+            <button onClick={onSubmit} disabled={fanverText.trim().length<50} className="w-full py-3.5 bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl font-semibold text-sm flex items-center justify-center gap-2">
+              <GitBranch size={16}/>Publish Fanver
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const AUTHOR_COLORS=[["#7c3aed","#4c1d95"],["#db2777","#831843"],["#0891b2","#0c4a6e"],["#059669","#064e3b"],["#d97706","#78350f"],["#dc2626","#7f1d1d"]];
+
+    function AuthorPage({ authorId, authorUsername, stories, cosplays, onBack, onStoryClick }) {
+      const authorStories=stories.filter(s=>s.authorId===authorId);
+      const totalLikes=authorStories.reduce((sum,s)=>sum+s.likes,0);
+      const totalChapters=authorStories.reduce((sum,s)=>sum+s.chapterCount,0);
+      const colorIdx=authorId?authorId.charCodeAt(authorId.length-1)%AUTHOR_COLORS.length:0;
+      const [ca,cb]=AUTHOR_COLORS[colorIdx];
+      const authorCosplayCount=cosplays.filter(c=>authorStories.some(s=>s.id===c.storyId)).length;
+      return(
+        <div className="pb-24 sm:pb-6">
+          <div className="sticky top-0 z-30"><TopBar onBack={onBack} title="Author Profile"/></div>
+          <div className="px-4 pt-4">
+            <div className="flex items-center gap-4 mb-5 p-4 bg-zinc-900 rounded-2xl border border-zinc-800">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0" style={{background:`linear-gradient(135deg,${ca},${cb})`}}><User size={28} className="text-white/70"/></div>
+              <div className="flex-1 min-w-0"><h1 className="font-bold text-xl truncate">{authorUsername}</h1><p className="text-zinc-500 text-sm">Author</p></div>
+            </div>
+            <div className="grid grid-cols-4 gap-2 mb-6">
+              {[{label:"Stories",value:authorStories.length},{label:"Chapters",value:totalChapters},{label:"Likes",value:fmtNum(totalLikes)},{label:"Cosplays",value:authorCosplayCount}].map(stat=>(
+                <div key={stat.label} className="p-3 bg-zinc-900 rounded-2xl border border-zinc-800 text-center">
+                  <p className="text-lg font-bold text-purple-300">{stat.value}</p>
+                  <p className="text-zinc-500 text-[10px] mt-0.5">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><BookOpen size={11}/>Stories</p>
+            {authorStories.length>0
+              ?<div className="space-y-2">{authorStories.map(s=>(
+                  <button key={s.id} onClick={()=>onStoryClick(s)} className="w-full flex items-center gap-3 p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-left active:bg-zinc-800 transition">
+                    <CoverGrad grad={s.grad} size="sm"/>
+                    <div className="flex-1 min-w-0"><p className="font-semibold text-sm text-white truncate">{s.title}</p><p className="text-zinc-500 text-xs">{s.chapterCount} ch · {fmtNum(s.likes)} likes · {s.genre}</p></div>
+                    <ChevronRight size={14} className="text-zinc-700 flex-shrink-0"/>
+                  </button>
+                ))}</div>
+              :<div className="text-center py-16 text-zinc-600"><BookOpen size={32} className="mx-auto mb-3 opacity-30"/><p>No stories yet.</p></div>
+            }
+          </div>
+        </div>
+      );
+    }
+
+    function CosplayPage({ cosplays, stories, onUpload, currentUser, onAuthRequired, filterCharacter, filterStory }) {
+      const [storyFilter,setStoryFilter]=useState(filterStory||"all");
+      const [charFilter,setCharFilter]=useState(filterCharacter||"all");
+      const [likedCosplays,setLikedCosplays]=useState(new Set());
+      useEffect(()=>{if(filterStory)setStoryFilter(filterStory);},[filterStory]);
+      useEffect(()=>{if(filterCharacter)setCharFilter(filterCharacter);},[filterCharacter]);
+      const storyOptions=[...new Set(cosplays.map(c=>c.storyId))].map(id=>stories.find(s=>s.id===id)).filter(Boolean);
+      const activeStory=stories.find(s=>s.id===storyFilter);
+      const charOptions=activeStory?.characters||[];
+      const filtered=cosplays.filter(c=>{if(storyFilter!=="all"&&c.storyId!==storyFilter)return false;if(charFilter!=="all"&&c.characterId!==charFilter)return false;return true;});
+      return(
+        <div className="pb-24 sm:pb-6" style={{background:"linear-gradient(180deg,#1a0a14 0%,#09090b 160px)"}}>
+          <div className="px-4 pt-5 pb-4 flex items-center justify-between">
+            <div><h1 className="text-xl font-bold flex items-center gap-2"><Camera className="text-pink-400" size={20}/>Fan <span className="text-pink-400">Cosplays</span></h1><p className="text-zinc-500 text-xs mt-0.5">Characters brought to life</p></div>
+            <button onClick={()=>currentUser?onUpload():onAuthRequired()} className="flex items-center gap-1.5 px-3 py-2 bg-pink-700 active:bg-pink-600 rounded-xl text-sm font-medium transition"><Upload size={14}/>Upload</button>
+          </div>
+          <div className="flex gap-2 px-4 overflow-x-auto pb-2 mb-2" style={{scrollbarWidth:"none"}}>
+            <Pill active={storyFilter==="all"} onClick={()=>{setStoryFilter("all");setCharFilter("all");}} pink>All</Pill>
+            {storyOptions.map(s=><Pill key={s.id} active={storyFilter===s.id} onClick={()=>{setStoryFilter(s.id);setCharFilter("all");}} pink>{s.title}</Pill>)}
+          </div>
+          {storyFilter!=="all"&&charOptions.length>0&&(
+            <div className="flex items-center gap-2 px-4 overflow-x-auto pb-3" style={{scrollbarWidth:"none"}}>
+              <span className="text-xs text-zinc-600 flex-shrink-0">Character:</span>
+              <button onClick={()=>setCharFilter("all")} className={`px-2.5 py-1 rounded-full text-xs border flex-shrink-0 transition ${charFilter==="all"?"bg-pink-900/60 border-pink-700 text-pink-300":"bg-zinc-800 border-zinc-700 text-zinc-400"}`}>All</button>
+              {charOptions.map(ch=>(
+                <button key={ch.id} onClick={()=>setCharFilter(ch.id)} className={`px-2.5 py-1 rounded-full text-xs border flex-shrink-0 whitespace-nowrap transition ${charFilter===ch.id?"bg-pink-900/60 border-pink-700 text-pink-300":"bg-zinc-800 border-zinc-700 text-zinc-400"}`}>{ch.name}</button>
+              ))}
+            </div>
+          )}
+          {charFilter!=="all"&&(
+            <div className="px-4 mb-3 flex items-center gap-2">
+              <span className="text-xs text-zinc-500">Showing:</span>
+              <span className="px-2 py-0.5 bg-pink-950 border border-pink-800 text-pink-300 rounded-full text-xs">{charOptions.find(c=>c.id===charFilter)?.name}</span>
+              <button onClick={()=>setCharFilter("all")}><X size={13} className="text-zinc-600"/></button>
+            </div>
+          )}
+          <div className="px-4">
+            {filtered.length===0
+              ?<div className="text-center py-20 text-zinc-600"><Camera size={36} className="mx-auto mb-3 opacity-30"/><p>No cosplays here yet.</p></div>
+              :<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filtered.map(cp=><CosplayCard key={cp.id} cosplay={cp} liked={likedCosplays.has(cp.id)} onLike={()=>setLikedCosplays(prev=>{const n=new Set(prev);n.has(cp.id)?n.delete(cp.id):n.add(cp.id);return n;})}/>)}
+                </div>
+            }
+          </div>
+        </div>
+      );
+    }
+
+    function CosplayCard({ cosplay, liked, onLike }) {
+      const videoRef=useRef(null);
+      const [playing,setPlaying]=useState(false);
+      const [a,b]=GRADIENTS[cosplay.thumbnail%GRADIENTS.length];
+      const handlePlay=()=>{if(cosplay.videoUrl&&videoRef.current){playing?videoRef.current.pause():videoRef.current.play();setPlaying(p=>!p);}};
+      return(
+        <div className="bg-zinc-900 rounded-2xl border border-zinc-800 active:border-pink-800 sm:hover:border-pink-800 overflow-hidden transition">
+          <div className="relative w-full aspect-video cursor-pointer overflow-hidden" onClick={handlePlay} style={{background:`linear-gradient(135deg,${a},${b})`}}>
+            {cosplay.videoUrl?<video ref={videoRef} src={cosplay.videoUrl} className="w-full h-full object-cover" loop playsInline/>
+              :<div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                <div className="w-14 h-14 rounded-full bg-black/40 border border-pink-500/30 flex items-center justify-center"><Play size={22} className="text-pink-300 ml-1"/></div>
+                <span className="text-white/40 text-xs">Tap to play</span>
+              </div>
+            }
+            <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-xs text-white/80">{cosplay.storyTitle}</div>
+            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-xs text-white/70"><Eye size={10}/>{fmtNum(cosplay.views)}</div>
+            <div className="absolute bottom-2 left-2"><span className="flex items-center gap-1 px-2 py-0.5 bg-pink-950/80 border border-pink-800/50 backdrop-blur-sm rounded-full text-xs text-pink-300 font-medium"><User size={10}/>{cosplay.character}</span></div>
+          </div>
+          <div className="p-3">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="text-zinc-500 text-xs">by <span className="text-pink-300 font-medium">{cosplay.fan}</span> · {cosplay.time}</p>
+              <button onClick={onLike} className={`flex items-center gap-1 text-xs flex-shrink-0 ${liked?"text-pink-400":"text-zinc-600"}`}><Heart size={13} fill={liked?"currentColor":"none"}/>{fmtNum(cosplay.likes+(liked?1:0))}</button>
+            </div>
+            <p className="text-zinc-400 text-xs leading-relaxed line-clamp-2">{cosplay.caption}</p>
+          </div>
+        </div>
+      );
+    }
+
+    function CosplayUploadModal({ onClose, currentUser, stories, onPublish }) {
+      const [storyId,setStoryId]=useState(stories[0]?.id||"");
+      const [characterId,setCharacterId]=useState("");
+      const [customChar,setCustomChar]=useState("");
+      const [caption,setCaption]=useState("");
+      const [videoFile,setVideoFile]=useState(null);
+      const [videoUrl,setVideoUrl]=useState(null);
+      const fileRef=useRef(null);
+      const activeStory=stories.find(s=>s.id===storyId);
+      const characters=activeStory?.characters||[];
+      const handleFile=file=>{if(!file||!file.type.startsWith("video/"))return;setVideoFile(file);setVideoUrl(URL.createObjectURL(file));};
+      const charName=(characters.find(c=>c.id===characterId)?.name)||customChar;
+      const publish=()=>{const story=stories.find(s=>s.id===storyId);onPublish({id:`cp_${Date.now()}`,fan:currentUser.username,storyId,storyTitle:story?.title||"",characterId,character:charName,caption,likes:0,views:0,videoUrl,thumbnail:story?.grad||0,time:"just now"});};
+      return(
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70" onClick={onClose}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-t-3xl sm:rounded-2xl p-5 w-full sm:max-w-md shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+            <div className="sm:hidden w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-4"/>
+            <div className="flex items-center justify-between mb-4"><h2 className="font-bold text-base flex items-center gap-2"><Camera size={16} className="text-pink-400"/>Upload Cosplay</h2><button onClick={onClose}><X size={18} className="text-zinc-500"/></button></div>
+            <div className="space-y-3">
+              <div onClick={()=>fileRef.current?.click()} className="w-full aspect-video rounded-2xl border-2 border-dashed border-zinc-700 active:border-pink-700 flex flex-col items-center justify-center cursor-pointer overflow-hidden bg-zinc-800/50">
+                {videoUrl?<video src={videoUrl} className="w-full h-full object-cover" muted autoPlay loop playsInline/>:<><Video size={24} className="text-zinc-500 mb-2"/><p className="text-sm text-zinc-400">Tap to select video</p><p className="text-xs text-zinc-600 mt-1">MP4, MOV, WebM</p></>}
+                <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={e=>handleFile(e.target.files[0])}/>
+              </div>
+              <select value={storyId} onChange={e=>{setStoryId(e.target.value);setCharacterId("");}} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-pink-600 transition">{stories.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</select>
+              {characters.length>0?(
+                <div>
+                  <label className="text-xs text-zinc-500 mb-2 block">Character</label>
+                  <div className="flex flex-wrap gap-2">
+                    {characters.map(ch=><button key={ch.id} onClick={()=>setCharacterId(ch.id)} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${characterId===ch.id?"bg-pink-900/60 border-pink-600 text-pink-300":"bg-zinc-800 border-zinc-700 text-zinc-400"}`}>{ch.name}</button>)}
+                    <button onClick={()=>setCharacterId("")} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${characterId===""&&customChar?"bg-pink-900/60 border-pink-600 text-pink-300":"bg-zinc-800 border-zinc-700 text-zinc-400"}`}>Other…</button>
+                  </div>
+                  {characterId===""&&<input value={customChar} onChange={e=>setCustomChar(e.target.value)} placeholder="Custom character name" className="mt-2 w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-pink-600 transition"/>}
+                </div>
+              ):(
+                <input value={customChar} onChange={e=>setCustomChar(e.target.value)} placeholder="Character name" className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-pink-600 transition"/>
+              )}
+              <textarea value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Caption…" rows={2} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-pink-600 transition"/>
+              <button onClick={publish} disabled={(!characterId&&!customChar.trim())||!videoFile} className="w-full py-3.5 bg-pink-700 active:bg-pink-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl font-semibold text-sm flex items-center justify-center gap-2"><Upload size={15}/>Post Cosplay</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Dashboard({ currentUser, stories, notifications, onBack, fanvers, onAdopt, onLogout }) {
+      const [tab,setTab]=useState("stories");
+      const pendingFanvers=Object.values(fanvers).flat().filter(fv=>!fv.adopted);
+      return(
+        <div className="pb-24 sm:pb-6">
+          <div className="sticky top-0 z-30"><TopBar onBack={onBack} title="My Profile"/></div>
+          <div className="px-4 py-4">
+            <div className="flex items-center gap-4 mb-5 p-4 bg-zinc-900 rounded-2xl border border-zinc-800">
+              <div className="w-14 h-14 rounded-full bg-purple-900 flex items-center justify-center flex-shrink-0"><User size={24} className="text-purple-300"/></div>
+              <div className="flex-1"><h1 className="font-bold text-lg">{currentUser?.username}</h1><p className="text-zinc-500 text-sm">{currentUser?.email||"Author"}</p></div>
+              <button onClick={onLogout} className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs transition">Sign out</button>
+            </div>
+            <div className="flex gap-2 mb-5 overflow-x-auto" style={{scrollbarWidth:"none"}}>
+              {["stories","fanvers","notifications"].map(t=>(
+                <Pill key={t} active={tab===t} onClick={()=>setTab(t)}>
+                  {t.charAt(0).toUpperCase()+t.slice(1)}
+                  {t==="fanvers"&&pendingFanvers.length>0&&<span className="ml-1.5 w-4 h-4 inline-flex items-center justify-center bg-purple-500 rounded-full text-[10px]">{pendingFanvers.length}</span>}
+                  {t==="notifications"&&notifications.filter(n=>!n.read).length>0&&<span className="ml-1.5 w-4 h-4 inline-flex items-center justify-center bg-purple-500 rounded-full text-[10px]">{notifications.filter(n=>!n.read).length}</span>}
+                </Pill>
+              ))}
+            </div>
+            {tab==="stories"&&(stories.length===0
+              ?<div className="text-center py-16 text-zinc-500"><BookOpen size={32} className="mx-auto mb-3 opacity-30"/><p>No stories yet.</p><p className="text-xs mt-1 text-zinc-600">Post your first story from the home page.</p></div>
+              :<div className="space-y-3">{stories.map(s=><div key={s.id} className="flex items-center gap-3 p-4 bg-zinc-900 rounded-2xl border border-zinc-800"><CoverGrad grad={s.grad} size="sm"/><div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{s.title}</p><p className="text-zinc-500 text-xs">{s.chapterCount} ch · {fmtNum(s.likes)} likes</p></div><Edit3 size={14} className="text-zinc-600 flex-shrink-0"/></div>)}</div>
+            )}
+            {tab==="fanvers"&&(pendingFanvers.length===0
+              ?<div className="text-center py-16 text-zinc-500"><GitBranch size={32} className="mx-auto mb-3 opacity-30"/><p>No pending fanvers.</p></div>
+              :<div className="space-y-3">{pendingFanvers.slice(0,8).map(fv=><div key={fv.id} className="p-4 bg-zinc-900 rounded-2xl border border-zinc-800"><div className="flex items-center gap-2 mb-2"><GitBranch size={13} className="text-purple-400"/><span className="text-purple-300 text-sm font-medium">{fv.fan}</span><span className="text-xs text-zinc-600 ml-auto">{fv.timestamp}</span></div><p className="text-zinc-300 text-sm line-clamp-2 mb-3">{fv.content}</p><button onClick={()=>onAdopt(fv.id)} className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-green-900/40 hover:bg-green-900/60 text-green-300 rounded-xl text-xs font-medium transition"><Award size={12}/>Adopt & Credit</button></div>)}</div>
+            )}
+            {tab==="notifications"&&(
+              <div className="space-y-2">{notifications.map(n=><div key={n.id} className={`p-4 rounded-2xl border ${!n.read?"bg-purple-950/20 border-purple-900":"bg-zinc-900 border-zinc-800"}`}><div className="flex items-start gap-3"><Bell size={14} className="text-purple-400 mt-0.5 flex-shrink-0"/><div className="flex-1"><p className="text-sm text-zinc-200 leading-snug">{n.text}</p><p className="text-xs text-zinc-600 mt-1">{n.time}</p></div>{!n.read&&<div className="w-2 h-2 bg-purple-500 rounded-full mt-1 flex-shrink-0"/>}</div></div>)}</div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function AuthModal({ mode, setMode, onClose }) {
+      const [username,setUsername]=useState("");
+      const [email,setEmail]=useState("");
+      const [password,setPassword]=useState("");
+      const [loading,setLoading]=useState(false);
+      const [error,setError]=useState("");
+
+      const handleSubmit = async () => {
+        setError(""); setLoading(true);
+        try {
+          if (mode === "signup") {
+            if (!username.trim()||!email.trim()||!password.trim()) { setError("Please fill in all fields."); setLoading(false); return; }
+            if (password.length < 6) { setError("Password must be at least 6 characters."); setLoading(false); return; }
+            const { error: err } = await sb.auth.signUp({
+              email: email.trim(), password,
+              options: { data: { username: username.trim() } }
+            });
+            if (err) { setError(err.message); setLoading(false); return; }
+            setError("✓ Account created! Check your email to confirm, then sign in.");
+            setLoading(false); return;
+          } else {
+            if (!email.trim()||!password.trim()) { setError("Please fill in email and password."); setLoading(false); return; }
+            const { error: err } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+            if (err) { setError(err.message); setLoading(false); return; }
+            onClose();
+          }
+        } catch(e) { setError("Something went wrong. Try again."); }
+        setLoading(false);
+      };
+
+      return(
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70" onClick={onClose}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-2xl" onClick={e=>e.stopPropagation()}>
+            <div className="sm:hidden w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-5"/>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-lg">{mode==="login"?"Welcome back":"Join StoryFork"}</h2>
+              <button onClick={onClose}><X size={18} className="text-zinc-500"/></button>
+            </div>
+            <div className="space-y-3 mb-5">
+              {mode==="signup"&&<input type="text" placeholder="Username" value={username} onChange={e=>setUsername(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition"/>}
+              <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition"/>
+              <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition"/>
+              {mode==="signup"&&<div className="flex items-start gap-2 text-xs text-zinc-500 p-3 bg-zinc-800 rounded-xl"><Mail size={13} className="mt-0.5 text-purple-400 flex-shrink-0"/>You'll get email alerts for new Fanvers, comments, and adoptions.</div>}
+              {error&&<p className={`text-xs px-1 ${error.startsWith("✓")?"text-green-400":"text-red-400"}`}>{error}</p>}
+            </div>
+            <button onClick={handleSubmit} disabled={loading} className="w-full py-3.5 bg-purple-600 active:bg-purple-500 disabled:opacity-50 rounded-2xl font-semibold text-sm transition mb-3">
+              {loading?"Please wait…":mode==="login"?"Sign In":"Create Account"}
+            </button>
+            <p className="text-center text-xs text-zinc-500">{mode==="login"?"New here?":"Have an account?"}{" "}<button onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");}} className="text-purple-400">{mode==="login"?"Join StoryFork":"Sign in"}</button></p>
+          </div>
+        </div>
+      );
+    }
+
+    function UploadModal({ onClose, currentUser, onPublish }) {
+      const [title,setTitle]=useState("");const [genre,setGenre]=useState("Fantasy");const [tags,setTags]=useState("");
+      const [desc,setDesc]=useState("");const [chTitle,setChTitle]=useState("");const [chContent,setChContent]=useState("");const [step,setStep]=useState(1);
+      const publish=()=>onPublish({id:`s_${Date.now()}`,title,author:currentUser.username,authorId:currentUser.id,grad:Math.floor(Math.random()*6),genre,tags:tags.split(",").map(t=>t.trim()).filter(Boolean),likes:0,chapterCount:1,trending:false,isNew:true,description:desc,characters:[],chapters:[{id:`c_${Date.now()}`,num:1,title:chTitle,content:chContent}]});
+      return(
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70" onClick={onClose}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-t-3xl sm:rounded-2xl p-5 w-full sm:max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+            <div className="sm:hidden w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-4"/>
+            <div className="flex items-center justify-between mb-5"><h2 className="font-bold text-base">{step===1?"Story Details":"First Chapter"}</h2><button onClick={onClose}><X size={18} className="text-zinc-500"/></button></div>
+            {step===1
+              ?<div className="space-y-3"><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Story title" className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition"/><select value={genre} onChange={e=>setGenre(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-600 transition">{GENRES.slice(1).map(g=><option key={g}>{g}</option>)}</select><input value={tags} onChange={e=>setTags(e.target.value)} placeholder="Tags (comma separated)" className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition"/><textarea value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Short description…" rows={3} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-purple-600 transition"/><button onClick={()=>setStep(2)} disabled={!title.trim()} className="w-full py-3.5 bg-purple-600 active:bg-purple-500 disabled:opacity-40 rounded-2xl font-semibold text-sm transition">Next →</button></div>
+              :<div className="space-y-3"><input value={chTitle} onChange={e=>setChTitle(e.target.value)} placeholder="Chapter title" className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition"/><textarea value={chContent} onChange={e=>setChContent(e.target.value)} placeholder="Write your chapter…" rows={10} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-purple-600 transition"/><div className="flex gap-2"><button onClick={()=>setStep(1)} className="px-5 py-3 bg-zinc-800 rounded-xl text-sm">← Back</button><button onClick={publish} disabled={!chTitle.trim()||chContent.length<50} className="flex-1 py-3 bg-purple-600 active:bg-purple-500 disabled:opacity-40 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"><Upload size={15}/>Publish</button></div></div>
+            }
+          </div>
+        </div>
+      );
+    }
+
+    // ─── ROOT APP ─────────────────────────────────────────────────────────────
+
+    function App() {
+      const [view,setView]=useState("home");
+      const [selectedStory,setSelectedStory]=useState(null);
+      const [selectedChapter,setSelectedChapter]=useState(null);
+      const [selectedFanver,setSelectedFanver]=useState(null);
+      const [selectedAuthor,setSelectedAuthor]=useState(null);
+      const [parentFanverForWrite,setParentFanverForWrite]=useState(null);
+      const [authOpen,setAuthOpen]=useState(false);
+      const [authMode,setAuthMode]=useState("login");
+      const [currentUser,setCurrentUser]=useState(null);
+      const [activeTab,setActiveTab]=useState("trending");
+      const [activeGenre,setActiveGenre]=useState("All");
+      const [fanverText,setFanverText]=useState("");
+      const [comments,setComments]=useState(INIT_COMMENTS);
+      const [newComment,setNewComment]=useState("");
+      const [fanvers,setFanvers]=useState(INIT_FANVERS);
+      const [stories,setStories]=useState(STORIES);
+      const [cosplays,setCosplays]=useState(INIT_COSPLAYS);
+      const [uploadOpen,setUploadOpen]=useState(false);
+      const [cosplayUploadOpen,setCosplayUploadOpen]=useState(false);
+      const [notifOpen,setNotifOpen]=useState(false);
+      const [likedStories,setLikedStories]=useState(new Set());
+      const [likedChapters,setLikedChapters]=useState(new Set());
+      const [cosplayFilterChar,setCosplayFilterChar]=useState(null);
+      const [cosplayFilterStory,setCosplayFilterStory]=useState(null);
+      const [notifications,setNotifications]=useState([
+        {id:"n1",text:"xianxia_fan99 created a Fanver of 'The Fall'",read:false,time:"30m ago"},
+        {id:"n2",text:"starfall_writes' Fanver was adopted — fan credited!",read:true,time:"1d ago"},
+        {id:"n3",text:"📧 Email: new Fanver on Chapter 1",read:true,time:"2d ago"},
+      ]);
+
+      // ── Supabase auth: restore session + listen for changes ──
+      useEffect(()=>{
+        sb.auth.getSession().then(({data:{session}})=>{
+          if(session){const u=session.user;setCurrentUser({id:u.id,username:u.user_metadata?.username||u.email.split("@")[0],email:u.email});}
+        });
+        const {data:{subscription}}=sb.auth.onAuthStateChange((_,session)=>{
+          if(session){const u=session.user;setCurrentUser({id:u.id,username:u.user_metadata?.username||u.email.split("@")[0],email:u.email});}
+          else setCurrentUser(null);
+        });
+        return ()=>subscription.unsubscribe();
+      },[]);
+
+      const handleLogout=async()=>{await sb.auth.signOut();setCurrentUser(null);nav("home");};
+
+      const nav=(v,story=null,chapter=null,fanver=null)=>{setView(v);if(story!==null)setSelectedStory(story);if(chapter!==null)setSelectedChapter(chapter);if(fanver!==null)setSelectedFanver(fanver);window.scrollTo(0,0);};
+      const navToAuthor=(authorId,authorUsername)=>{setSelectedAuthor({id:authorId,username:authorUsername});setView("author");window.scrollTo(0,0);};
+      const handleBottomNav=id=>{if(id==="auth"){setAuthMode("login");setAuthOpen(true);return;}nav(id);};
+      const handleWriteFanver=(pFv=null)=>{if(!currentUser){setAuthMode("signup");setAuthOpen(true);return;}setParentFanverForWrite(pFv);nav("write-fanver",selectedStory,selectedChapter);};
+      const handleAdopt=(fvId)=>{
+        const chapterId=Object.keys(fanvers).find(cid=>fanvers[cid].some(fv=>fv.id===fvId));
+        if(!chapterId)return;
+        const fv=fanvers[chapterId].find(f=>f.id===fvId);
+        setFanvers(prev=>({...prev,[chapterId]:prev[chapterId].map(f=>f.id===fvId?{...f,adopted:true}:f)}));
+        setNotifications(prev=>[{id:`n_${Date.now()}`,text:`You adopted ${fv?.fan||"a fan"}'s Fanver — they've been credited!`,read:false,time:"just now"},...prev]);
+      };
+
+      const filteredStories=(()=>{const base=stories.filter(s=>activeGenre==="All"||s.genre===activeGenre);const tabbed=base.filter(s=>activeTab==="all"||(activeTab==="trending"&&s.trending)||(activeTab==="new"&&s.isNew));return tabbed.length>0?tabbed:base;})();
+      const unread=notifications.filter(n=>!n.read).length;
+      const showMobileTopBar=["home","cosplay","search"].includes(view);
+
+      return(
+        <div className="min-h-screen bg-zinc-950 text-white" style={{fontFamily:"system-ui,sans-serif"}}>
+          <nav className="hidden sm:flex fixed top-0 left-0 right-0 z-50 bg-zinc-950/95 border-b border-zinc-800 backdrop-blur items-center gap-3 px-4 py-3">
+            <button onClick={()=>nav("home")} className="flex items-center gap-2 font-bold text-lg tracking-tight flex-shrink-0"><GitBranch className="text-purple-400" size={20}/>Story<span className="text-purple-400">Fork</span></button>
+            <div className="relative flex-1 max-w-sm"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"/><input type="text" placeholder="Search…" onFocus={()=>nav("search")} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition"/></div>
+            <button onClick={()=>nav("cosplay")} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition ${view==="cosplay"?"bg-pink-950/60 text-pink-300 border border-pink-900":"text-zinc-400 hover:text-white hover:bg-zinc-800"}`}><Camera size={15}/>Cosplay</button>
+            {currentUser?(
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button onClick={()=>setNotifOpen(o=>!o)} className="relative p-2 rounded-full hover:bg-zinc-800 transition"><Bell size={18}/>{unread>0&&<span className="absolute top-1 right-1 w-2 h-2 bg-purple-500 rounded-full"/>}</button>
+                  {notifOpen&&(<><div className="fixed inset-0 z-40" onClick={()=>setNotifOpen(false)}/><div className="absolute right-0 top-11 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden"><div className="p-3 border-b border-zinc-800 text-sm font-semibold flex items-center justify-between">Notifications<button onClick={()=>setNotifications(p=>p.map(n=>({...n,read:true})))} className="text-xs text-purple-400">Mark all read</button></div>{notifications.map(n=><div key={n.id} onClick={()=>{setNotifications(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));setNotifOpen(false);}} className={`p-3 text-sm border-b border-zinc-800 hover:bg-zinc-800 cursor-pointer ${!n.read?"bg-purple-950/30":""}`}><p className="text-zinc-200">{n.text}</p><p className="text-zinc-500 text-xs mt-1">{n.time}</p></div>)}</div></>)}
+                </div>
+                <button onClick={()=>nav("dashboard")} className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm transition"><User size={13}/>{currentUser.username}</button>
+              </div>
+            ):(
+              <div className="flex gap-2">
+                <button onClick={()=>{setAuthMode("login");setAuthOpen(true);}} className="px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition">Sign in</button>
+                <button onClick={()=>{setAuthMode("signup");setAuthOpen(true);}} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium transition">Join</button>
+              </div>
+            )}
+          </nav>
+
+          {showMobileTopBar&&(
+            <div className="sm:hidden fixed top-0 left-0 right-0 z-40 bg-zinc-950/95 border-b border-zinc-800 backdrop-blur flex items-center justify-between px-4 py-3">
+              <button onClick={()=>nav("home")} className="flex items-center gap-1.5 font-bold text-base"><GitBranch className="text-purple-400" size={18}/>Story<span className="text-purple-400">Fork</span></button>
+              <div className="flex items-center gap-2">
+                {currentUser&&(
+                  <div className="relative">
+                    <button onClick={()=>setNotifOpen(o=>!o)} className="relative p-1.5"><Bell size={20}/>{unread>0&&<span className="absolute top-0.5 right-0.5 w-2 h-2 bg-purple-500 rounded-full"/>}</button>
+                    {notifOpen&&(<><div className="fixed inset-0 z-40" onClick={()=>setNotifOpen(false)}/><div className="absolute right-0 top-10 w-72 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl z-50 overflow-hidden"><div className="p-3 border-b border-zinc-800 text-sm font-semibold flex items-center justify-between">Notifications<button onClick={()=>setNotifications(p=>p.map(n=>({...n,read:true})))} className="text-xs text-purple-400">Mark all read</button></div>{notifications.map(n=><div key={n.id} onClick={()=>{setNotifications(p=>p.map(x=>x.id===n.id?{...x,read:true}:x));setNotifOpen(false);}} className={`p-3 text-sm border-b border-zinc-800 ${!n.read?"bg-purple-950/30":""}`}><p className="text-zinc-200">{n.text}</p><p className="text-zinc-500 text-xs mt-1">{n.time}</p></div>)}</div></>)}
+                  </div>
+                )}
+                {!currentUser&&<button onClick={()=>{setAuthMode("signup");setAuthOpen(true);}} className="px-3 py-1.5 bg-purple-600 rounded-lg text-xs font-medium">Join</button>}
+              </div>
+            </div>
+          )}
+
+          <div className={`${showMobileTopBar?"pt-14":"pt-0"} sm:pt-16`}>
+            {view==="home"&&<HomePage stories={filteredStories} activeTab={activeTab} setActiveTab={setActiveTab} activeGenre={activeGenre} setActiveGenre={setActiveGenre} onStoryClick={s=>nav("story",s)} liked={likedStories} onLike={id=>setLikedStories(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;})} onUpload={()=>currentUser?setUploadOpen(true):(setAuthMode("signup"),setAuthOpen(true))} currentUser={currentUser}/>}
+            {view==="search"&&<DiscoverPage stories={stories} onStoryClick={s=>nav("story",s)}/>}
+            {view==="cosplay"&&<CosplayPage cosplays={cosplays} stories={stories} onUpload={()=>setCosplayUploadOpen(true)} currentUser={currentUser} onAuthRequired={()=>{setAuthMode("signup");setAuthOpen(true);}} filterCharacter={cosplayFilterChar} filterStory={cosplayFilterStory}/>}
+            {view==="story"&&selectedStory&&<StoryPage story={selectedStory} onBack={()=>nav("home")} onChapterClick={ch=>nav("chapter",selectedStory,ch)} fanvers={fanvers} cosplays={cosplays} onCosplayNav={()=>{setCosplayFilterStory(selectedStory.id);setCosplayFilterChar(null);nav("cosplay");}} onCharacterCosplay={(char,story)=>{setCosplayFilterStory(story.id);setCosplayFilterChar(char.id);nav("cosplay");}} onAuthorClick={()=>navToAuthor(selectedStory.authorId,selectedStory.author)}/>}
+            {view==="chapter"&&selectedChapter&&selectedStory&&<ChapterReader story={selectedStory} chapter={selectedChapter} onBack={()=>nav("story",selectedStory)} fanvers={fanvers[selectedChapter.id]||[]} comments={comments[selectedChapter.id]||[]} setComments={setComments} newComment={newComment} setNewComment={setNewComment} currentUser={currentUser} liked={likedChapters.has(selectedChapter.id)} onLike={()=>setLikedChapters(prev=>{const n=new Set(prev);n.has(selectedChapter.id)?n.delete(selectedChapter.id):n.add(selectedChapter.id);return n;})} onWriteFanver={handleWriteFanver} onViewFanver={fv=>nav("fanver",selectedStory,selectedChapter,fv)} onChapterNav={ch=>nav("chapter",selectedStory,ch)} onAuthorClick={()=>navToAuthor(selectedStory.authorId,selectedStory.author)}/>}
+            {view==="write-fanver"&&selectedChapter&&selectedStory&&<FanverWriter story={selectedStory} chapter={selectedChapter} parentFanver={parentFanverForWrite} fanverText={fanverText} setFanverText={setFanverText} onBack={()=>nav("chapter",selectedStory,selectedChapter)} onSubmit={()=>{const nFv={id:`fv_${Date.now()}`,chapterId:selectedChapter.id,storyId:selectedStory.id,fan:currentUser?.username||"anon_fan",content:fanverText,likes:0,adopted:false,parentFanver:parentFanverForWrite?.id||null,childFanvers:[],timestamp:"just now"};setFanvers(prev=>({...prev,[selectedChapter.id]:[...(prev[selectedChapter.id]||[]),nFv]}));setFanverText("");nav("chapter",selectedStory,selectedChapter);}}/>}
+            {view==="fanver"&&selectedFanver&&selectedStory&&selectedChapter&&<FanverView fanver={selectedFanver} story={selectedStory} chapter={selectedChapter} allFanvers={fanvers[selectedChapter.id]||[]} onBack={()=>nav("chapter",selectedStory,selectedChapter)} onFork={()=>{if(!currentUser){setAuthMode("signup");setAuthOpen(true);return;}setParentFanverForWrite(selectedFanver);nav("write-fanver",selectedStory,selectedChapter);}} currentUser={currentUser} isAuthor={currentUser?.id===selectedStory.authorId} onAdopt={handleAdopt} onViewChild={child=>{setSelectedFanver(child);window.scrollTo(0,0);}}/>}
+            {view==="author"&&selectedAuthor&&<AuthorPage authorId={selectedAuthor.id} authorUsername={selectedAuthor.username} stories={stories} cosplays={cosplays} onBack={()=>setView("story")} onStoryClick={s=>nav("story",s)}/>}
+            {view==="dashboard"&&currentUser&&<Dashboard currentUser={currentUser} stories={stories.filter(s=>s.authorId===currentUser.id)} notifications={notifications} onBack={()=>nav("home")} fanvers={fanvers} onAdopt={handleAdopt} onLogout={handleLogout}/>}
+          </div>
+
+          <BottomNav view={view} onNav={handleBottomNav} currentUser={currentUser} unread={unread}/>
+
+          {authOpen&&<AuthModal mode={authMode} setMode={setAuthMode} onClose={()=>setAuthOpen(false)}/>}
+          {uploadOpen&&<UploadModal onClose={()=>setUploadOpen(false)} currentUser={currentUser} onPublish={story=>{setStories(prev=>[story,...prev]);setUploadOpen(false);}}/>}
+          {cosplayUploadOpen&&<CosplayUploadModal onClose={()=>setCosplayUploadOpen(false)} currentUser={currentUser} stories={stories} onPublish={cp=>{setCosplays(prev=>[cp,...prev]);setCosplayUploadOpen(false);}}/>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
